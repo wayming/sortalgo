@@ -1,0 +1,54 @@
+package main
+
+import (
+	"log"
+	"strings"
+)
+
+type GenericLogger[T any] interface {
+	WithField(string, string) T
+	Info(string)
+}
+
+type LoggerGenerator[T any] interface {
+	NewLogger() T
+	foo()
+}
+
+type MyLogger struct {
+	fields []string
+}
+
+func (m *MyLogger) WithField(k string, v string) *MyLogger {
+	m.fields = append(m.fields, k+"="+v)
+	return m
+}
+
+func (m *MyLogger) Info(msg string) {
+	log.Printf("%s : %s", strings.Join(m.fields, ","), msg)
+}
+
+func DoStuff[T GenericLogger[T]](t T) {
+	t.WithField("go", "1.18").Info("is awesome")
+}
+
+type MyLoggerGenerator struct {
+	val int
+}
+
+func (m MyLoggerGenerator) NewLogger() MyLogger {
+	return MyLogger{fields: make([]string, 0)}
+}
+
+func (m MyLoggerGenerator) foo() {
+	log.Printf("foo")
+}
+
+func DoStuffGen[T LoggerGenerator[MyLogger]](t T) {
+	t.foo()
+	logger := t.NewLogger()
+	DoStuff(&logger)
+}
+func main() {
+	DoStuffGen(MyLoggerGenerator{100})
+}
