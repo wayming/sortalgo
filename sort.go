@@ -1,32 +1,76 @@
 package sortalgo
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Iterator[T any] interface {
-	next() T
+	next() (T, error)
+	prev() (T, error)
 	swap(iter T)
 	equal(iter T) bool
 	valueGreaterThan(iter T) bool
 }
 
-type Source[T2 any] interface {
-	begin() T2
-	end() T2
+type Source[Iter any] interface {
+	begin() Iter
+	end() Iter // pass-the-end
 }
 
-func BubbleSort[T3 Iterator[T3], T4 Source[T3]](s T4) {
+func BubbleSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
 	end := s.end()
-	for x := s.begin(); !x.equal(end); x = x.next() {
-		y := x
-		fmt.Println("x: ", x)
-		for y = y.next(); !y.equal(end); y = y.next() {
-			fmt.Println("y: ", y)
+	x := s.begin()
+
+	for !x.equal(end) {
+		y, error := x.next()
+		if error != nil {
+			return error
+		}
+
+		for !y.equal(end) {
 			if x.valueGreaterThan(y) {
 				x.swap(y)
 			}
+			y, error = y.next()
+			if error != nil {
+				return error
+			}
+		}
+
+		x, error = x.next()
+		if error != nil {
+			return error
 		}
 	}
+	return nil
+}
 
+func InsertSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
+	end := s.end()
+	x, error := s.begin().next()
+	if error != nil {
+		// single element
+		return nil
+	}
+
+	for !x.equal(end) {
+		curr := x
+		prev, error := x.prev()
+		if error != nil {
+			continue
+		}
+		for ; error == nil; prev, error = prev.prev() {
+			if prev.valueGreaterThan(curr) {
+				curr.swap(prev)
+			}
+			curr = prev
+		}
+		x, error = x.next()
+		if error != nil {
+			return error
+		}
+	}
+	return nil
 }
 
 type IntArray []int
@@ -37,35 +81,37 @@ type IntArrayIter struct {
 }
 
 func (iter IntArrayIter) equal(otherIter IntArrayIter) bool {
-	fmt.Println("equal ", iter.idx, " with ", otherIter.idx)
-
 	return iter.idx == otherIter.idx
 }
 
 func (iter IntArrayIter) valueGreaterThan(otherIter IntArrayIter) bool {
-	fmt.Println("valueGreaterThan ", (*iter.array)[iter.idx], " with ", (*otherIter.array)[otherIter.idx])
 	return (*iter.array)[iter.idx] > (*otherIter.array)[otherIter.idx]
 }
 
-func (iter IntArrayIter) next() IntArrayIter {
-	fmt.Println("next ", iter.idx)
-	return IntArrayIter{iter.array, iter.idx + 1}
+func (iter IntArrayIter) next() (IntArrayIter, error) {
+	if iter.idx >= len(*iter.array) {
+		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the end")
+	}
+	return IntArrayIter{iter.array, iter.idx + 1}, nil
+}
+func (iter IntArrayIter) prev() (IntArrayIter, error) {
+	if iter.idx == 0 {
+		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the begin")
+	}
+	return IntArrayIter{iter.array, iter.idx - 1}, nil
 }
 
 func (iter IntArrayIter) swap(otherIter IntArrayIter) {
-	fmt.Println("swap ", iter.idx, " with ", otherIter.idx)
 	(*iter.array)[iter.idx], (*otherIter.array)[otherIter.idx] = (*otherIter.array)[otherIter.idx], (*iter.array)[iter.idx]
 }
 
 func (array IntArray) begin() IntArrayIter {
-	fmt.Println("begin")
 	var iter IntArrayIter
 	iter.array = &array
 	iter.idx = 0
 	return iter
 }
 func (array IntArray) end() IntArrayIter {
-	fmt.Println("end")
 	var iter IntArrayIter
 	iter.array = &array
 	iter.idx = len(array)
