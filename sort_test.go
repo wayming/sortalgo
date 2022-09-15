@@ -1,7 +1,6 @@
 package sortalgo_test
 
 import (
-	"fmt"
 	"math/rand"
 	"reflect"
 	"sortalgo"
@@ -59,9 +58,8 @@ func BenchmarkInsertSort(b *testing.B) {
 }
 
 func TestInsertSortLarge(t *testing.T) {
-	src, expected := GetRandomIntegers(100000)
+	src, expected := GetRandomIntegers(10000)
 	sortalgo.InsertSort[sortalgo.IntArrayIter, sortalgo.IntArray](src)
-	fmt.Println(expected)
 	if !reflect.DeepEqual(src, expected) {
 		t.Fatal("Unexpected values after sort, expected ", expected, ", actual ", src)
 	}

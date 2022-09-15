@@ -15,6 +15,10 @@ type Iterator[T any] interface {
 type Source[Iter any] interface {
 	begin() Iter
 	end() Iter // pass-the-end
+	len() int
+	firstN(n int) (Source[Iter], error)
+	lastN(n int) (Source[Iter], error)
+	append(iter Iter)
 }
 
 func BubbleSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
@@ -73,6 +77,32 @@ func InsertSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
 	return nil
 }
 
+func MergeSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
+	if s.len() > 2 {
+		half := s.len() / 2
+
+		var err error
+		firstHalf, err := s.firstN(half)
+		if err != nil {
+			return err
+		}
+
+		secondHalf, err := s.firstN(half)
+		if err != nil {
+			return err
+		}
+
+		if err = MergeSort[Iter, SRC](firstHalf.(SRC)); err != nil {
+			return err
+		}
+
+		if err = MergeSort[Iter, SRC](secondHalf.(SRC)); err != nil {
+			return err
+		}
+
+	}
+}
+
 type IntArray []int
 
 type IntArrayIter struct {
@@ -116,4 +146,24 @@ func (array IntArray) end() IntArrayIter {
 	iter.array = &array
 	iter.idx = len(array)
 	return iter
+}
+
+func (array IntArray) len() int {
+	return len(array)
+}
+
+func (array IntArray) firstN(n int) (IntArray, error) {
+	if n <= len(array) {
+		return array[0:n], nil
+	} else {
+		return make([]int, 0), fmt.Errorf("Not enough elements, ", n, " requested, total ", len(array))
+	}
+}
+
+func (array IntArray) lastN(n int) (IntArray, error) {
+	if n <= len(array) {
+		return array[len(array)-n:], nil
+	} else {
+		return make([]int, 0), fmt.Errorf("Not enough elements, ", n, " requested, total ", len(array))
+	}
 }
