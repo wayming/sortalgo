@@ -41,6 +41,16 @@ func TestInsertSortSanity(t *testing.T) {
 	}
 }
 
+func TestMergeSortSanity(t *testing.T) {
+	nums := sortalgo.IntArray{10, 1, 20, 50, 5}
+	expect := sortalgo.IntArray{1, 5, 10, 20, 50}
+
+	sortalgo.MergeSort[sortalgo.IntArrayIter, sortalgo.IntArray](nums)
+	if !reflect.DeepEqual(nums, expect) {
+		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
+	}
+}
+
 func BenchmarkBubbleSort(b *testing.B) {
 	nums, _ := GetRandomIntegers(10000)
 

@@ -12,16 +12,18 @@ type Iterator[T any] interface {
 	valueGreaterThan(iter T) bool
 }
 
-type Source[Iter any] interface {
+type Source[Iter any, Self any] interface {
 	begin() Iter
 	end() Iter // pass-the-end
 	len() int
-	firstN(n int) (Source[Iter], error)
-	lastN(n int) (Source[Iter], error)
+	firstN(n int) (Self, error)
+	lastN(n int) (Self, error)
 	append(iter Iter)
+	copyFrom(s Self) error
 }
 
-func BubbleSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
+// Sort in asending order
+func BubbleSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	end := s.end()
 	x := s.begin()
 
@@ -49,7 +51,8 @@ func BubbleSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
 	return nil
 }
 
-func InsertSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
+// Sort in asending order
+func InsertSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	end := s.end()
 	x, error := s.begin().next()
 	if error != nil {
@@ -77,30 +80,80 @@ func InsertSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
 	return nil
 }
 
-func MergeSort[Iter Iterator[Iter], SRC Source[Iter]](s SRC) error {
+// Sort in asending order
+func MergeSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	if s.len() > 2 {
 		half := s.len() / 2
 
 		var err error
-		firstHalf, err := s.firstN(half)
+		leftHalf, err := s.firstN(half)
 		if err != nil {
 			return err
 		}
 
-		secondHalf, err := s.firstN(half)
+		rightHalf, err := s.lastN(s.len() - half)
 		if err != nil {
 			return err
 		}
-
-		if err = MergeSort[Iter, SRC](firstHalf.(SRC)); err != nil {
+		fmt.Println("left ", leftHalf)
+		fmt.Println("right ", rightHalf)
+		if err = MergeSort[Iter, SRC](leftHalf); err != nil {
 			return err
 		}
 
-		if err = MergeSort[Iter, SRC](secondHalf.(SRC)); err != nil {
+		if err = MergeSort[Iter, SRC](rightHalf); err != nil {
 			return err
 		}
+		fmt.Println("ordered left ", leftHalf)
+		fmt.Println("ordered right ", rightHalf)
+		left := leftHalf.begin()
+		right := rightHalf.begin()
+		var sorted SRC
+		for !left.equal(leftHalf.end()) && !right.equal(rightHalf.end()) {
+			if left.valueGreaterThan(right) {
+				sorted.append(right)
+				if right, err = right.next(); err != nil {
+					return err
+				}
+			} else {
+				sorted.append(left)
+				if left, err = left.next(); err != nil {
+					return err
+				}
+			}
+			fmt.Println("merged ", sorted)
 
+			if left.equal(leftHalf.end()) {
+				for !right.equal(rightHalf.end()) {
+					sorted.append(right)
+					if right, err = right.next(); err != nil {
+						return err
+					}
+				}
+			}
+			if right.equal(rightHalf.end()) {
+				for !left.equal(leftHalf.end()) {
+					sorted.append(left)
+					if left, err = left.next(); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		s.copyFrom(sorted)
+	} else if s.len() == 2 {
+		left := s.begin()
+		right := left
+		var err error
+		if right, err = left.next(); err != nil {
+			return err
+		}
+		if left.valueGreaterThan(right) {
+			left.swap(right)
+		}
 	}
+	fmt.Println("merged ", s)
+	return nil
 }
 
 type IntArray []int
@@ -115,6 +168,7 @@ func (iter IntArrayIter) equal(otherIter IntArrayIter) bool {
 }
 
 func (iter IntArrayIter) valueGreaterThan(otherIter IntArrayIter) bool {
+	fmt.Println("comparing ", (*iter.array)[iter.idx], (*otherIter.array)[otherIter.idx])
 	return (*iter.array)[iter.idx] > (*otherIter.array)[otherIter.idx]
 }
 
@@ -156,7 +210,7 @@ func (array IntArray) firstN(n int) (IntArray, error) {
 	if n <= len(array) {
 		return array[0:n], nil
 	} else {
-		return make([]int, 0), fmt.Errorf("Not enough elements, ", n, " requested, total ", len(array))
+		return make([]int, 0), fmt.Errorf("Not enough elements, %d requested, total %d", n, len(array))
 	}
 }
 
@@ -164,6 +218,20 @@ func (array IntArray) lastN(n int) (IntArray, error) {
 	if n <= len(array) {
 		return array[len(array)-n:], nil
 	} else {
-		return make([]int, 0), fmt.Errorf("Not enough elements, ", n, " requested, total ", len(array))
+		return make([]int, 0), fmt.Errorf("Not enough elements, %d requested, total %d", n, len(array))
 	}
+}
+
+func (array IntArray) append(iter IntArrayIter) {
+	fmt.Println("append ", (*iter.array)[iter.idx])
+	array = append(array, (*iter.array)[iter.idx])
+	fmt.Println("array ", array)
+}
+
+func (array IntArray) copyFrom(fromArray IntArray) error {
+	if len(array) != len(fromArray) {
+		return fmt.Errorf("fromArray len %d is not equal to the toArray len %d", len(fromArray), len(array))
+	}
+	copy(array, fromArray)
+	return nil
 }
