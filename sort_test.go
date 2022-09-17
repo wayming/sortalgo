@@ -51,8 +51,18 @@ func TestMergeSortSanity(t *testing.T) {
 	}
 }
 
+func TestQuickSortSanity(t *testing.T) {
+	nums := sortalgo.IntArray{10, 1, 20, 50, 5}
+	expect := sortalgo.IntArray{1, 5, 10, 20, 50}
+
+	sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
+	if !reflect.DeepEqual(nums, expect) {
+		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
+	}
+}
+
 func BenchmarkBubbleSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100000)
+	nums, _ := GetRandomIntegers(10000)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -61,7 +71,7 @@ func BenchmarkBubbleSort(b *testing.B) {
 }
 
 func BenchmarkInsertSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100000)
+	nums, _ := GetRandomIntegers(10000)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -70,7 +80,7 @@ func BenchmarkInsertSort(b *testing.B) {
 }
 
 func BenchmarkMergeSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100000)
+	nums, _ := GetRandomIntegers(10000)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -78,9 +88,18 @@ func BenchmarkMergeSort(b *testing.B) {
 	}
 }
 
+func BenchmarkQuickSort(b *testing.B) {
+	nums, _ := GetRandomIntegers(10000)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
+	}
+}
+
 func TestInsertSortLarge(t *testing.T) {
 	src, expected := GetRandomIntegers(10000)
-	sortalgo.MergeSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&src)
+	sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&src)
 	if !reflect.DeepEqual(src, expected) {
 		t.Fatal("Unexpected values after sort, expected ", expected, ", actual ", src)
 	}

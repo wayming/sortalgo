@@ -159,6 +159,71 @@ func MergeSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	return nil
 }
 
+// Sort in asending order
+func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
+	if s.len() > 2 {
+		pivot, err := s.end().prev()
+		if err != nil {
+			return err
+		}
+
+		left := s.begin()
+		right, _ := pivot.prev()
+		leftN := 1
+		rightN := 1
+		for true {
+
+			for pivot.valueGreaterThan(left) && !left.equal(right) {
+				left, _ = left.next()
+				leftN++
+			}
+			for right.valueGreaterThan(pivot) && !left.equal(right) {
+				right, _ = right.prev()
+				rightN++
+			}
+
+			if left.equal(right) {
+				left.swap(pivot)
+				break
+			} else {
+				left.swap(right)
+			}
+		}
+
+		leftHalf, err := s.firstN(leftN)
+		if err != nil {
+			return err
+		}
+		rightHalf, err := s.lastN(rightN)
+		if err != nil {
+			return err
+		}
+
+		// log.Println("left ", leftHalf)
+		// log.Println("right ", rightHalf)
+		if err = QuickSort[Iter, SRC](leftHalf); err != nil {
+			return err
+		}
+
+		if err = QuickSort[Iter, SRC](rightHalf); err != nil {
+			return err
+		}
+
+	} else if s.len() == 2 {
+		first := s.begin()
+		second := first
+		var err error
+		if second, err = first.next(); err != nil {
+			return err
+		}
+		if first.valueGreaterThan(second) {
+			first.swap(second)
+		}
+	}
+	// log.Println("merged ", s)
+	return nil
+}
+
 type IntArray []int
 
 type IntArrayIter struct {
