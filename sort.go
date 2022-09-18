@@ -4,6 +4,9 @@ import (
 	"fmt"
 )
 
+const STATS_KEY_COMPARE = "COMPARE"
+const STATS_KEY_SWAP = "SWAP"
+
 type Iterator[T any] interface {
 	next() (T, error)
 	prev() (T, error)
@@ -21,6 +24,7 @@ type Source[Iter any, Self any] interface {
 	lastN(n int) (Self, error)
 	append(iter Iter)
 	copyFrom(s Self) error
+	getStats() map[string]int
 }
 
 // Sort in asending order
@@ -155,7 +159,6 @@ func MergeSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			left.swap(right)
 		}
 	}
-	// log.Println("merged ", s)
 	return nil
 }
 
@@ -220,11 +223,13 @@ func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			first.swap(second)
 		}
 	}
-	// log.Println("merged ", s)
 	return nil
 }
 
-type IntArray []int
+type IntArray struct {
+	Data  []int
+	Stats map[string]int
+}
 
 type IntArrayIter struct {
 	array *IntArray
@@ -236,12 +241,13 @@ func (iter IntArrayIter) equal(otherIter IntArrayIter) bool {
 }
 
 func (iter IntArrayIter) valueGreaterThan(otherIter IntArrayIter) bool {
-	// log.Println("comparing ", (*iter.array)[iter.idx], (*otherIter.array)[otherIter.idx])
-	return (*iter.array)[iter.idx] > (*otherIter.array)[otherIter.idx]
+	// log.Println("comparing ", (iter.array.Data)[iter.idx], (otherIter.array.Data)[otherIter.idx])
+	iter.array.Stats[STATS_KEY_COMPARE]++
+	return (iter.array.Data)[iter.idx] > otherIter.array.Data[otherIter.idx]
 }
 
 func (iter IntArrayIter) next() (IntArrayIter, error) {
-	if iter.idx >= len(*iter.array) {
+	if iter.idx >= len(iter.array.Data) {
 		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the end")
 	}
 	return IntArrayIter{iter.array, iter.idx + 1}, nil
@@ -254,7 +260,8 @@ func (iter IntArrayIter) prev() (IntArrayIter, error) {
 }
 
 func (iter IntArrayIter) swap(otherIter IntArrayIter) {
-	(*iter.array)[iter.idx], (*otherIter.array)[otherIter.idx] = (*otherIter.array)[otherIter.idx], (*iter.array)[iter.idx]
+	iter.array.Stats[STATS_KEY_SWAP]++
+	(iter.array.Data)[iter.idx], (otherIter.array.Data)[otherIter.idx] = (otherIter.array.Data)[otherIter.idx], (iter.array.Data)[iter.idx]
 }
 
 func (this *IntArray) begin() IntArrayIter {
@@ -266,23 +273,23 @@ func (this *IntArray) begin() IntArrayIter {
 func (this *IntArray) end() IntArrayIter {
 	var iter IntArrayIter
 	iter.array = this
-	iter.idx = len(*this)
+	iter.idx = len((*this).Data)
 	return iter
 }
 
 func (this *IntArray) len() int {
-	return len(*this)
+	return len((*this).Data)
 }
 
 func (this *IntArray) firstN(n int) (*IntArray, error) {
 	var result IntArray
 	var err error
-	if n <= len(*this) {
-		result = (*this)[0:n]
+	if n <= len((*this).Data) {
+		result = IntArray{((*this).Data)[0:n], make(map[string]int, 0)}
 		err = nil
 	} else {
-		result = make([]int, 0)
-		err = fmt.Errorf("Not enough elements, %d requested, total %d", n, len(*this))
+		result = IntArray{make([]int, 0), make(map[string]int, 0)}
+		err = fmt.Errorf("Not enough elements, %d requested, total %d", n, len((*this).Data))
 	}
 	return &result, err
 }
@@ -290,32 +297,36 @@ func (this *IntArray) firstN(n int) (*IntArray, error) {
 func (this *IntArray) lastN(n int) (*IntArray, error) {
 	var result IntArray
 	var err error
-	if n <= len(*this) {
-		result = (*this)[len(*this)-n:]
+	if n <= len((*this).Data) {
+		result = IntArray{((*this).Data)[len((*this).Data)-n:], make(map[string]int, 0)}
 		err = nil
 	} else {
-		result = make([]int, 0)
-		err = fmt.Errorf("Not enough elements, %d requested, total %d", n, len(*this))
+		result = IntArray{make([]int, 0), make(map[string]int, 0)}
+		err = fmt.Errorf("Not enough elements, %d requested, total %d", n, len((*this).Data))
 	}
 	return &result, err
 }
 
 func (this *IntArray) append(iter IntArrayIter) {
 	// log.Println("this ", this)
-	// log.Println("append ", (*iter.array)[iter.idx])
-	*this = append(*this, (*iter.array)[iter.idx])
-	// log.Println("array ", *this)
+	// log.Println("append ", (iter.array.Data)[iter.idx])
+	(*this).Data = append((*this).Data, (iter.array.Data)[iter.idx])
+	// log.Println("array ", (*this).Data)
 }
 
-func (array *IntArray) copyFrom(fromArray *IntArray) error {
-	if len(*array) != len(*fromArray) {
-		return fmt.Errorf("*fromArray len %d is not equal to the toArray len %d", len(*fromArray), len(*array))
+func (this *IntArray) copyFrom(from *IntArray) error {
+	if len((*this).Data) != len((*from).Data) {
+		return fmt.Errorf("from len %d is not equal to the toArray len %d", len((*from).Data), len((*this).Data))
 	}
-	copy(*array, *fromArray)
+	copy((*this).Data, (*from).Data)
 	return nil
 }
 
-func (array *IntArray) new() *IntArray {
-	result := make(IntArray, 0)
+func (this *IntArray) new() *IntArray {
+	result := IntArray{make([]int, 0), make(map[string]int, 0)}
 	return &result
+}
+
+func (this *IntArray) getStats() map[string]int {
+	return (*this).Stats
 }
