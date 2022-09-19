@@ -27,7 +27,7 @@ func TestBubbleSortSanity(t *testing.T) {
 	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
 
 	sortalgo.BubbleSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-	if !reflect.DeepEqual(nums, expect) {
+	if !reflect.DeepEqual(nums.Data, expect.Data) {
 		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
 	}
 }
@@ -37,7 +37,7 @@ func TestInsertSortSanity(t *testing.T) {
 	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
 
 	sortalgo.InsertSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-	if !reflect.DeepEqual(nums, expect) {
+	if !reflect.DeepEqual(nums.Data, expect.Data) {
 		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
 	}
 }
@@ -47,7 +47,7 @@ func TestMergeSortSanity(t *testing.T) {
 	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
 
 	sortalgo.MergeSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-	if !reflect.DeepEqual(nums, expect) {
+	if !reflect.DeepEqual(nums.Data, expect.Data) {
 		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
 	}
 }
@@ -57,7 +57,17 @@ func TestQuickSortSanity(t *testing.T) {
 	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
 
 	sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-	if !reflect.DeepEqual(nums, expect) {
+	if !reflect.DeepEqual(nums.Data, expect.Data) {
+		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
+	}
+}
+
+func TestShellSortSanity(t *testing.T) {
+	nums := sortalgo.IntArray{[]int{10, 1, 20, 50, 5}, make(map[string]int, 0)}
+	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
+
+	sortalgo.ShellSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
+	if !reflect.DeepEqual(nums.Data, expect.Data) {
 		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
 	}
 }
@@ -98,6 +108,16 @@ func BenchmarkQuickSort(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
+		log.Println(nums.Stats)
+	}
+}
+
+func BenchmarkShellSort(b *testing.B) {
+	nums, _ := GetRandomIntegers(100)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sortalgo.ShellSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
 		log.Println(nums.Stats)
 	}
 }

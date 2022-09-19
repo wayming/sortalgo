@@ -2,6 +2,7 @@ package sortalgo
 
 import (
 	"fmt"
+	"log"
 )
 
 const STATS_KEY_COMPARE = "COMPARE"
@@ -9,6 +10,7 @@ const STATS_KEY_SWAP = "SWAP"
 
 type Iterator[T any] interface {
 	next() (T, error)
+	nextN(n int) (T, error)
 	prev() (T, error)
 	swap(iter T)
 	equal(iter T) bool
@@ -30,9 +32,10 @@ type Source[Iter any, Self any] interface {
 // Sort in asending order
 func BubbleSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	end := s.end()
-	x := s.begin()
+	curr := s.begin()
 
-	for !x.equal(end) {
+	for !curr.equal(end) {
+		x := curr
 		y, error := x.next()
 		if error != nil {
 			return error
@@ -42,13 +45,17 @@ func BubbleSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			if x.valueGreaterThan(y) {
 				x.swap(y)
 			}
+			x, error = x.next()
+			if error != nil {
+				return error
+			}
 			y, error = y.next()
 			if error != nil {
 				return error
 			}
 		}
 
-		x, error = x.next()
+		curr, error = curr.next()
 		if error != nil {
 			return error
 		}
@@ -165,32 +172,30 @@ func MergeSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 // Sort in asending order
 func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	if s.len() > 2 {
-		pivot, err := s.end().prev()
-		if err != nil {
-			return err
-		}
-
+		pivot := s.begin()
 		left := s.begin()
-		right, _ := pivot.prev()
-		leftN := 1
-		rightN := 1
-		for true {
-
-			for pivot.valueGreaterThan(left) && !left.equal(right) {
-				left, _ = left.next()
-				leftN++
-			}
-			for right.valueGreaterThan(pivot) && !left.equal(right) {
+		right, _ := s.end().prev()
+		leftN := 0
+		rightN := 0
+		for !left.equal(right) {
+			log.Println(left)
+			log.Println(right)
+			for !pivot.valueGreaterThan(right) && !left.equal(right) {
 				right, _ = right.prev()
 				rightN++
 			}
+			left.swap(right)
 
-			if left.equal(right) {
-				left.swap(pivot)
-				break
-			} else {
-				left.swap(right)
+			for !left.valueGreaterThan(pivot) && !left.equal(right) {
+				left, _ = left.next()
+				leftN++
 			}
+			right.swap(left)
+
+		}
+		right.swap(pivot)
+		if leftN == 0 || rightN == 0 {
+			return nil
 		}
 
 		leftHalf, err := s.firstN(leftN)
@@ -202,8 +207,9 @@ func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			return err
 		}
 
-		// log.Println("left ", leftHalf)
-		// log.Println("right ", rightHalf)
+		log.Println("left ", leftHalf)
+		log.Println("right ", rightHalf)
+
 		if err = QuickSort[Iter, SRC](leftHalf); err != nil {
 			return err
 		}
@@ -224,6 +230,45 @@ func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 		}
 	}
 	return nil
+}
+
+// Sort in asending order
+func shellSortInternal[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC, gap int) error {
+
+	curr := s.begin()
+	currEnd, _ := curr.nextN(gap)
+	for !curr.equal(currEnd) {
+
+		first := curr
+		for true {
+
+			second, err := first.nextN(gap)
+			if err != nil {
+				break
+			}
+
+			if first.valueGreaterThan(second) {
+				first.swap(second)
+			}
+
+			first = second
+
+			second, err = second.nextN(gap)
+			if err != nil {
+				break
+			}
+		}
+
+		curr, _ = curr.next()
+	}
+
+	if gap/2 >= 1 {
+		return shellSortInternal[Iter, SRC](s, gap/2)
+	}
+	return nil
+}
+func ShellSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
+	return shellSortInternal[Iter, SRC](s, s.len()/2)
 }
 
 type IntArray struct {
@@ -252,6 +297,14 @@ func (iter IntArrayIter) next() (IntArrayIter, error) {
 	}
 	return IntArrayIter{iter.array, iter.idx + 1}, nil
 }
+
+func (iter IntArrayIter) nextN(n int) (IntArrayIter, error) {
+	if iter.idx+n >= len(iter.array.Data) {
+		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the end")
+	}
+	return IntArrayIter{iter.array, iter.idx + n}, nil
+}
+
 func (iter IntArrayIter) prev() (IntArrayIter, error) {
 	if iter.idx == 0 {
 		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the begin")
