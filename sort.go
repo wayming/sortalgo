@@ -13,8 +13,11 @@ type Iterator[T any] interface {
 	nextN(n int) (T, error)
 	prev() (T, error)
 	swap(iter T)
+	valueAssign(iter T)
 	equal(iter T) bool
 	valueGreaterThan(iter T) bool
+	valueGreaterOrEqualThan(iter T) bool
+	distanceFrom(iter T) int
 }
 
 type Source[Iter any, Self any] interface {
@@ -25,6 +28,7 @@ type Source[Iter any, Self any] interface {
 	firstN(n int) (Self, error)
 	lastN(n int) (Self, error)
 	append(iter Iter)
+	remove(iter Iter)
 	copyFrom(s Self) error
 	getStats() map[string]int
 }
@@ -32,10 +36,10 @@ type Source[Iter any, Self any] interface {
 // Sort in asending order
 func BubbleSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	end := s.end()
-	curr := s.begin()
+	begin := s.begin()
 
-	for !curr.equal(end) {
-		x := curr
+	for !end.equal(begin) {
+		x := begin
 		y, error := x.next()
 		if error != nil {
 			return error
@@ -55,10 +59,7 @@ func BubbleSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			}
 		}
 
-		curr, error = curr.next()
-		if error != nil {
-			return error
-		}
+		end, _ = y.prev()
 	}
 	return nil
 }
@@ -172,28 +173,29 @@ func MergeSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 // Sort in asending order
 func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	if s.len() > 2 {
-		pivot := s.begin()
 		left := s.begin()
 		right, _ := s.end().prev()
 		leftN := 0
 		rightN := 0
+		// Save pivot with new source
+		var pivot SRC
+		pivot = pivot.new()
+		pivot.append(s.begin())
+
 		for !left.equal(right) {
-			log.Println(left)
-			log.Println(right)
-			for !pivot.valueGreaterThan(right) && !left.equal(right) {
+			for right.valueGreaterOrEqualThan(pivot.begin()) && !left.equal(right) {
 				right, _ = right.prev()
 				rightN++
 			}
-			left.swap(right)
+			left.valueAssign(right)
 
-			for !left.valueGreaterThan(pivot) && !left.equal(right) {
+			for pivot.begin().valueGreaterOrEqualThan(left) && !left.equal(right) {
 				left, _ = left.next()
 				leftN++
 			}
-			right.swap(left)
-
+			right.valueAssign(left)
 		}
-		right.swap(pivot)
+		right.valueAssign(pivot.begin())
 		if leftN == 0 || rightN == 0 {
 			return nil
 		}
@@ -207,8 +209,9 @@ func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			return err
 		}
 
-		log.Println("left ", leftHalf)
-		log.Println("right ", rightHalf)
+		// log.Println("all ", s)
+		// log.Println("left ", leftHalf)
+		// log.Println("right ", rightHalf)
 
 		if err = QuickSort[Iter, SRC](leftHalf); err != nil {
 			return err
@@ -271,6 +274,67 @@ func ShellSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	return shellSortInternal[Iter, SRC](s, s.len()/2)
 }
 
+func heapify[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) {
+	// Start from the last parent node
+	workingNode, _ := s.begin().nextN(s.len()/2 - 1)
+	var err error
+	for true {
+		log.Println("workingNode ", workingNode)
+		pushDown(s, workingNode)
+		workingNode, err = workingNode.prev()
+		if err != nil {
+			// All processed
+			break
+		}
+	}
+}
+func pushDown[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC, parent Iter) {
+	left, errLeft := parent.nextN(parent.distanceFrom(s.begin()) + 1)
+	right, errRight := parent.nextN(parent.distanceFrom(s.begin()) + 2)
+	least := parent
+
+	log.Println(parent)
+	log.Println("errLeft ", errLeft, left)
+	log.Println("errRight ", errRight, right)
+
+	// Leaf node
+	if errLeft != nil && errRight != nil {
+		return
+	}
+
+	if errLeft == nil && least.valueGreaterThan(left) {
+		least = left
+	}
+	if errRight == nil && least.valueGreaterThan(right) {
+		least = right
+	}
+
+	if !least.equal(parent) {
+		least.swap(parent)
+		pushDown(s, least)
+	}
+}
+func HeapSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
+	var result SRC
+	result = result.new()
+
+	heapify[Iter, SRC](s)
+	for s.len() > 0 {
+		result.append(s.begin())
+		last, _ := s.end().prev()
+		last.swap(s.begin())
+		s.remove(last)
+		pushDown[Iter, SRC](s, s.begin())
+	}
+	log.Println(result)
+	for iter := result.begin(); !iter.equal(result.end()); iter, _ = iter.next() {
+		s.append(iter)
+	}
+	log.Println(s)
+
+	return nil
+}
+
 type IntArray struct {
 	Data  []int
 	Stats map[string]int
@@ -291,6 +355,17 @@ func (iter IntArrayIter) valueGreaterThan(otherIter IntArrayIter) bool {
 	return (iter.array.Data)[iter.idx] > otherIter.array.Data[otherIter.idx]
 }
 
+func (iter IntArrayIter) valueGreaterOrEqualThan(otherIter IntArrayIter) bool {
+	// log.Println("comparing ", (iter.array.Data)[iter.idx], (otherIter.array.Data)[otherIter.idx])
+	iter.array.Stats[STATS_KEY_COMPARE]++
+	return (iter.array.Data)[iter.idx] >= otherIter.array.Data[otherIter.idx]
+}
+
+func (iter IntArrayIter) valueAssign(otherIter IntArrayIter) {
+	iter.array.Stats[STATS_KEY_SWAP]++
+	(iter.array.Data)[iter.idx] = (otherIter.array.Data)[otherIter.idx]
+}
+
 func (iter IntArrayIter) next() (IntArrayIter, error) {
 	if iter.idx >= len(iter.array.Data) {
 		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the end")
@@ -303,6 +378,10 @@ func (iter IntArrayIter) nextN(n int) (IntArrayIter, error) {
 		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the end")
 	}
 	return IntArrayIter{iter.array, iter.idx + n}, nil
+}
+
+func (iter IntArrayIter) distanceFrom(otherIter IntArrayIter) int {
+	return iter.idx - otherIter.idx
 }
 
 func (iter IntArrayIter) prev() (IntArrayIter, error) {
@@ -364,6 +443,12 @@ func (this *IntArray) append(iter IntArrayIter) {
 	// log.Println("this ", this)
 	// log.Println("append ", (iter.array.Data)[iter.idx])
 	(*this).Data = append((*this).Data, (iter.array.Data)[iter.idx])
+	// log.Println("array ", (*this).Data)
+}
+func (this *IntArray) remove(iter IntArrayIter) {
+	// log.Println("this ", this)
+	// log.Println("append ", (iter.array.Data)[iter.idx])
+	(*this).Data = append((*this).Data[0:iter.idx], (*this).Data[iter.idx+1:]...)
 	// log.Println("array ", (*this).Data)
 }
 

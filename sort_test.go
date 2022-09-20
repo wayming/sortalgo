@@ -72,6 +72,16 @@ func TestShellSortSanity(t *testing.T) {
 	}
 }
 
+func TestHeapSortSanity(t *testing.T) {
+	nums := sortalgo.IntArray{[]int{10, 1, 20, 50, 5}, make(map[string]int, 0)}
+	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
+
+	sortalgo.HeapSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
+	if !reflect.DeepEqual(nums.Data, expect.Data) {
+		t.Fatal("Unexpected values after sort, expected ", expect, ", actual ", nums)
+	}
+}
+
 func BenchmarkBubbleSort(b *testing.B) {
 	nums, _ := GetRandomIntegers(100)
 
