@@ -2,7 +2,6 @@ package sortalgo
 
 import (
 	"fmt"
-	"log"
 )
 
 const STATS_KEY_COMPARE = "COMPARE"
@@ -172,6 +171,8 @@ func MergeSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 
 // Sort in asending order
 func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
+	// log.Println("input ", s)
+	var err error
 	if s.len() > 2 {
 		left := s.begin()
 		right, _ := s.end().prev()
@@ -196,29 +197,29 @@ func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 			right.valueAssign(left)
 		}
 		right.valueAssign(pivot.begin())
-		if leftN == 0 || rightN == 0 {
-			return nil
-		}
+		// log.Println("leftN ", leftN)
+		// log.Println("rightN ", rightN)
+		var leftHalf, rightHalf SRC
+		if leftN > 1 {
+			leftHalf, err = s.firstN(leftN)
+			if err != nil {
+				panic(err)
+			}
 
-		leftHalf, err := s.firstN(leftN)
-		if err != nil {
-			return err
+			if err = QuickSort[Iter, SRC](leftHalf); err != nil {
+				panic(err)
+			}
 		}
-		rightHalf, err := s.lastN(rightN)
-		if err != nil {
-			return err
-		}
+		if rightN > 1 {
+			rightHalf, err = s.lastN(rightN)
+			if err != nil {
+				panic(err)
+			}
 
-		// log.Println("all ", s)
-		// log.Println("left ", leftHalf)
-		// log.Println("right ", rightHalf)
+			if err = QuickSort[Iter, SRC](rightHalf); err != nil {
+				panic(err)
+			}
 
-		if err = QuickSort[Iter, SRC](leftHalf); err != nil {
-			return err
-		}
-
-		if err = QuickSort[Iter, SRC](rightHalf); err != nil {
-			return err
 		}
 
 	} else if s.len() == 2 {
@@ -279,7 +280,7 @@ func heapify[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) {
 	workingNode, _ := s.begin().nextN(s.len()/2 - 1)
 	var err error
 	for true {
-		log.Println("workingNode ", workingNode)
+		// log.Println("workingNode ", workingNode)
 		pushDown(s, workingNode)
 		workingNode, err = workingNode.prev()
 		if err != nil {
@@ -293,9 +294,9 @@ func pushDown[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC, parent Iter) {
 	right, errRight := parent.nextN(parent.distanceFrom(s.begin()) + 2)
 	least := parent
 
-	log.Println(parent)
-	log.Println("errLeft ", errLeft, left)
-	log.Println("errRight ", errRight, right)
+	// log.Println(parent)
+	// log.Println("errLeft ", errLeft, left)
+	// log.Println("errRight ", errRight, right)
 
 	// Leaf node
 	if errLeft != nil && errRight != nil {
@@ -326,11 +327,11 @@ func HeapSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 		s.remove(last)
 		pushDown[Iter, SRC](s, s.begin())
 	}
-	log.Println(result)
+	// log.Println(result)
 	for iter := result.begin(); !iter.equal(result.end()); iter, _ = iter.next() {
 		s.append(iter)
 	}
-	log.Println(s)
+	// log.Println(s)
 
 	return nil
 }
@@ -467,4 +468,18 @@ func (this *IntArray) new() *IntArray {
 
 func (this *IntArray) getStats() map[string]int {
 	return (*this).Stats
+}
+
+func NewIntArray() *IntArray {
+	result := IntArray{make([]int, 0), make(map[string]int, 0)}
+	return &result
+}
+
+func NewIntArrayFrom(from *IntArray) *IntArray {
+	result := IntArray{make([]int, from.len()), make(map[string]int, 0)}
+	err := result.copyFrom(from)
+	if err != nil {
+		panic(err)
+	}
+	return &result
 }

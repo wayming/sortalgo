@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+type SortFunc func(*sortalgo.IntArray) error
+
 func GetRandomIntegers(size int) (sortalgo.IntArray, sortalgo.IntArray) {
 	src := rand.NewSource(time.Now().UnixNano())
 	intRand := rand.New(src)
@@ -16,10 +18,10 @@ func GetRandomIntegers(size int) (sortalgo.IntArray, sortalgo.IntArray) {
 	for i := 0; i < size; i++ {
 		source.Data = append(source.Data, intRand.Intn(10*size))
 	}
-	sorted := source
-	sortalgo.BubbleSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&sorted)
-
-	return source, sorted
+	sorted := sortalgo.NewIntArrayFrom(&source)
+	sortalgo.BubbleSort[sortalgo.IntArrayIter, *sortalgo.IntArray](sorted)
+	sorted.Stats = make(map[string]int)
+	return source, *sorted
 }
 
 func TestBubbleSortSanity(t *testing.T) {
@@ -53,8 +55,8 @@ func TestMergeSortSanity(t *testing.T) {
 }
 
 func TestQuickSortSanity(t *testing.T) {
-	nums := sortalgo.IntArray{[]int{10, 1, 20, 50, 5}, make(map[string]int, 0)}
-	expect := sortalgo.IntArray{[]int{1, 5, 10, 20, 50}, make(map[string]int, 0)}
+	nums := sortalgo.IntArray{[]int{46, 2, 68, 0, 47, 57, 22}, make(map[string]int, 0)}
+	expect := sortalgo.IntArray{[]int{0, 2, 22, 46, 47, 57, 68}, make(map[string]int, 0)}
 
 	sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
 	if !reflect.DeepEqual(nums.Data, expect.Data) {
@@ -82,60 +84,64 @@ func TestHeapSortSanity(t *testing.T) {
 	}
 }
 
-func BenchmarkBubbleSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100)
+func MergeStats(to map[string]int, from map[string]int) {
+	for k, v := range from {
+		to[k] += v
+	}
+}
+
+func benchmarkSort(b *testing.B, sort SortFunc) {
+	unsorted, sorted := GetRandomIntegers(100)
+	stats := make(map[string]int)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		sortalgo.BubbleSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-		log.Println(nums.Stats)
+		src := sortalgo.NewIntArrayFrom(&unsorted)
+		sort(src)
+		if !reflect.DeepEqual(src.Data, sorted.Data) {
+			b.Fatal("Unexpected values after sort, expected ", sorted.Data, ", actual ", src.Data)
+		}
+		MergeStats(stats, src.Stats)
 	}
+	for k, v := range stats {
+		stats[k] = v / b.N
+	}
+	log.Println(stats)
+}
+
+func BenchmarkBubbleSort(b *testing.B) {
+	benchmarkSort(b, sortalgo.BubbleSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
 }
 
 func BenchmarkInsertSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sortalgo.InsertSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-		log.Println(nums.Stats)
-	}
+	benchmarkSort(b, sortalgo.InsertSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
 }
 
 func BenchmarkMergeSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sortalgo.MergeSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-		log.Println(nums.Stats)
-	}
+	benchmarkSort(b, sortalgo.MergeSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
 }
 
 func BenchmarkQuickSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-		log.Println(nums.Stats)
-	}
+	benchmarkSort(b, sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
 }
 
 func BenchmarkShellSort(b *testing.B) {
-	nums, _ := GetRandomIntegers(100)
+	benchmarkSort(b, sortalgo.ShellSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
+}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sortalgo.ShellSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&nums)
-		log.Println(nums.Stats)
-	}
+func BenchmarkHeapSort(b *testing.B) {
+	benchmarkSort(b, sortalgo.HeapSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
 }
 
 func TestInsertSortLarge(t *testing.T) {
-	src, expected := GetRandomIntegers(100)
-	sortalgo.QuickSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&src)
-	if !reflect.DeepEqual(src, expected) {
-		t.Fatal("Unexpected values after sort, expected ", expected, ", actual ", src)
+	src, expected := GetRandomIntegers(5)
+	log.Println(src)
+	log.Println(expected)
+
+	sortalgo.ShellSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&src)
+	log.Println(src)
+
+	if !reflect.DeepEqual(src.Data, expected.Data) {
+		t.Fatal("Unexpected values after sort, expected ", expected.Data, ", actual ", src.Data)
 	}
 }
