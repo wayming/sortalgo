@@ -18,6 +18,7 @@ type Iterator[T any] interface {
 	valueGreaterThan(iter T) bool
 	valueGreaterOrEqualThan(iter T) bool
 	distanceFrom(iter T) int
+	value() any
 }
 
 type Source[Iter any, Self any] interface {
@@ -326,6 +327,38 @@ func HeapSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 	return nil
 }
 
+// Only works for positive integer data value
+func CountingSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
+	curr := s.begin()
+	largest := curr
+	for !curr.equal(s.end()) {
+		if curr.valueGreaterThan(largest) {
+			largest = curr
+		}
+		curr, _ = curr.next()
+
+	}
+
+	itersArrays := make([][]Iter, largest.value().(int)+1)
+	curr = s.begin()
+	for !curr.equal(s.end()) {
+		itersArrays[curr.value().(int)] = append(itersArrays[curr.value().(int)], curr)
+		curr, _ = curr.next()
+	}
+
+	// result := NewIntArray()
+	var result SRC
+	result = result.new()
+	for _, iters := range itersArrays {
+		for _, iter := range iters {
+			result.append(iter)
+		}
+	}
+
+	s.copyFrom(result)
+	return nil
+}
+
 type IntArray struct {
 	Data  []int
 	Stats map[string]int
@@ -392,6 +425,10 @@ func (iter IntArrayIter) prevN(n int) (IntArrayIter, error) {
 func (iter IntArrayIter) swap(otherIter IntArrayIter) {
 	iter.array.Stats[STATS_KEY_SWAP]++
 	(iter.array.Data)[iter.idx], (otherIter.array.Data)[otherIter.idx] = (otherIter.array.Data)[otherIter.idx], (iter.array.Data)[iter.idx]
+}
+
+func (iter IntArrayIter) value() any {
+	return (iter.array.Data)[iter.idx]
 }
 
 func (this *IntArray) begin() IntArrayIter {

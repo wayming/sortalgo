@@ -133,6 +133,10 @@ func BenchmarkHeapSort(b *testing.B) {
 	benchmarkSort(b, sortalgo.HeapSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
 }
 
+func BenchmarkCountingSort(b *testing.B) {
+	benchmarkSort(b, sortalgo.CountingSort[sortalgo.IntArrayIter, *sortalgo.IntArray])
+}
+
 func TestInsertSortLarge(t *testing.T) {
 	// src, expected := GetRandomIntegers(5)
 	src := sortalgo.IntArray{[]int{29, 40, 20, 41, 10}, make(map[string]int, 0)}
@@ -140,7 +144,7 @@ func TestInsertSortLarge(t *testing.T) {
 	log.Println(src)
 	log.Println(expected)
 
-	sortalgo.ShellSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&src)
+	sortalgo.CountingSort[sortalgo.IntArrayIter, *sortalgo.IntArray](&src)
 	log.Println(src)
 
 	if !reflect.DeepEqual(src.Data, expected.Data) {
