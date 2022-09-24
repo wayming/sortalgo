@@ -11,6 +11,7 @@ type Iterator[T any] interface {
 	next() (T, error)
 	nextN(n int) (T, error)
 	prev() (T, error)
+	prevN(n int) (T, error)
 	swap(iter T)
 	valueAssign(iter T)
 	equal(iter T) bool
@@ -238,32 +239,21 @@ func QuickSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
 
 // Sort in asending order
 func shellSortInternal[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC, gap int) error {
+	curr, err := s.begin().nextN(gap)
+	for err == nil {
 
-	curr := s.begin()
-	currEnd, _ := curr.nextN(gap)
-	for !curr.equal(currEnd) {
+		curr2 := curr
+		prev, err2 := curr2.prevN(gap)
+		for err2 == nil {
 
-		first := curr
-		for true {
-
-			second, err := first.nextN(gap)
-			if err != nil {
-				break
+			if prev.valueGreaterThan(curr2) {
+				prev.swap(curr2)
 			}
-
-			if first.valueGreaterThan(second) {
-				first.swap(second)
-			}
-
-			first = second
-
-			second, err = second.nextN(gap)
-			if err != nil {
-				break
-			}
+			curr2 = prev
+			prev, err2 = curr2.prevN(gap)
 		}
 
-		curr, _ = curr.next()
+		curr, err = curr.nextN(gap)
 	}
 
 	if gap/2 >= 1 {
@@ -272,7 +262,7 @@ func shellSortInternal[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC, gap in
 	return nil
 }
 func ShellSort[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) error {
-	return shellSortInternal[Iter, SRC](s, s.len()/2)
+	return shellSortInternal[Iter, SRC](s, s.len()/200)
 }
 
 func heapify[Iter Iterator[Iter], SRC Source[Iter, SRC]](s SRC) {
@@ -390,6 +380,13 @@ func (iter IntArrayIter) prev() (IntArrayIter, error) {
 		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the begin")
 	}
 	return IntArrayIter{iter.array, iter.idx - 1}, nil
+}
+
+func (iter IntArrayIter) prevN(n int) (IntArrayIter, error) {
+	if iter.idx < n {
+		return IntArrayIter{iter.array, -1}, fmt.Errorf("pass the begining")
+	}
+	return IntArrayIter{iter.array, iter.idx - n}, nil
 }
 
 func (iter IntArrayIter) swap(otherIter IntArrayIter) {

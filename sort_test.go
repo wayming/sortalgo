@@ -91,7 +91,7 @@ func MergeStats(to map[string]int, from map[string]int) {
 }
 
 func benchmarkSort(b *testing.B, sort SortFunc) {
-	unsorted, sorted := GetRandomIntegers(100)
+	unsorted, sorted := GetRandomIntegers(10000)
 	stats := make(map[string]int)
 
 	b.ResetTimer()
@@ -134,7 +134,9 @@ func BenchmarkHeapSort(b *testing.B) {
 }
 
 func TestInsertSortLarge(t *testing.T) {
-	src, expected := GetRandomIntegers(5)
+	// src, expected := GetRandomIntegers(5)
+	src := sortalgo.IntArray{[]int{29, 40, 20, 41, 10}, make(map[string]int, 0)}
+	expected := sortalgo.IntArray{[]int{10, 20, 29, 40, 41}, make(map[string]int, 0)}
 	log.Println(src)
 	log.Println(expected)
 
